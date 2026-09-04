@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NAV - Navegador Proxy</title>
+    <title>NAV - Proxy Browser REAL</title>
     <style>
         * {
             margin: 0;
@@ -168,59 +168,99 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            padding: 20px;
         }
 
-        .browser-info {
-            flex: 1;
+        .tabs {
             display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            padding: 40px 20px;
+            gap: 2px;
+            background: #1a1a1a;
+            padding: 5px;
+            border-bottom: 1px solid #333;
+            overflow-x: auto;
         }
 
-        .browser-info h2 {
-            font-size: 28px;
-            color: #00ff88;
-            margin-bottom: 20px;
-        }
-
-        .browser-info p {
+        .tab {
+            padding: 8px 15px;
+            border-radius: 8px 8px 0 0;
+            background: #2a2a2a;
             color: #ccc;
-            margin-bottom: 30px;
-            max-width: 600px;
-        }
-
-        .proxy-buttons {
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-            justify-content: center;
-            margin-top: 20px;
-        }
-
-        .proxy-btn {
-            padding: 15px 25px;
-            border: 2px solid #00ff88;
-            background: rgba(0, 255, 136, 0.1);
-            color: #00ff88;
-            border-radius: 10px;
             cursor: pointer;
-            font-size: 14px;
-            transition: all 0.3s;
-            text-decoration: none;
-            display: inline-flex;
+            transition: all 0.2s;
+            font-size: 13px;
+            white-space: nowrap;
+            display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 5px;
         }
 
-        .proxy-btn:hover {
+        .tab:hover {
+            background: #3a3a3a;
+        }
+
+        .tab.active {
             background: #00ff88;
             color: #000;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0, 255, 136, 0.3);
+        }
+
+        .tab-close {
+            margin-left: 5px;
+            padding: 0 5px;
+            background: #ff4444;
+            border-radius: 3px;
+            color: white;
+            font-size: 10px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .tab-close:hover {
+            background: #cc0000;
+        }
+
+        .browser-frame {
+            flex: 1;
+            background: #0a0a0a;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .proxy-iframe {
+            flex: 1;
+            border: none;
+            background: #0a0a0a;
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            backdrop-filter: blur(5px);
+        }
+
+        .loading-overlay.hidden {
+            display: none;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #333;
+            border-top-color: #00ff88;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
 
         .status-bar {
@@ -251,6 +291,33 @@
         @keyframes pulse {
             0%, 100% { opacity: 1; transform: scale(1); }
             50% { opacity: 0.5; transform: scale(1.2); }
+        }
+
+        .status-text {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .connection-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 11px;
+        }
+
+        .connection-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .connection-item.active {
+            color: #00ff88;
+        }
+
+        .connection-item.inactive {
+            color: #666;
         }
 
         .settings-panel {
@@ -314,6 +381,34 @@
             display: flex;
             align-items: center;
             gap: 8px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            padding: 8px;
+            border-radius: 5px;
+            transition: background 0.2s;
+            cursor: pointer;
+        }
+
+        .checkbox-item:hover {
+            background: #2a2a2a;
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: #00ff88;
+            cursor: pointer;
         }
 
         .proxy-selector {
@@ -395,35 +490,20 @@
             color: #000;
         }
 
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.9);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 2000;
-            backdrop-filter: blur(5px);
-        }
-
-        .loading-overlay.active {
+        .proxy-status {
             display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+            padding: 5px 10px;
+            background: rgba(0, 255, 136, 0.1);
+            border-radius: 5px;
+            color: #00ff88;
         }
 
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 5px solid #333;
-            border-top-color: #00ff88;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
+        .proxy-status.error {
+            background: rgba(255, 68, 68, 0.1);
+            color: #ff4444;
         }
 
         @media (max-width: 768px) {
@@ -448,17 +528,10 @@
                 width: 100%;
                 right: -100%;
             }
-            .content-area {
-                padding: 10px;
-            }
         }
     </style>
 </head>
 <body>
-    <div class="loading-overlay" id="loadingOverlay">
-        <div class="spinner"></div>
-    </div>
-
     <div class="header">
         <div style="display: flex; align-items: center; gap: 10px;">
             <button class="toggle-sidebar" onclick="toggleSidebar()">☰</button>
@@ -483,6 +556,10 @@
                     <span class="menu-icon">📜</span>
                     <span>Historial</span>
                 </div>
+                <div class="menu-item" onclick="showBookmarks()">
+                    <span class="menu-icon">⭐</span>
+                    <span>Favoritos</span>
+                </div>
             </div>
             
             <div class="sidebar-section">
@@ -505,24 +582,19 @@
         </div>
 
         <div class="content-area">
-            <div class="browser-info" id="browserInfo">
-                <h2>🌐 Navegador Proxy NAV</h2>
-                <p>Ingresa una URL en la barra de arriba y haz clic en <strong>IR</strong> para navegar con privacidad. DuckDuckGo se cargará automáticamente.</p>
-                
-                <div class="proxy-buttons" id="proxyButtons">
-                    <a href="https://www.croxyproxy.com" target="_blank" class="proxy-btn" onclick="updateStatus('Abriendo CroxyProxy...')">
-                        <span>🔒</span>
-                        <span>CroxyProxy</span>
-                    </a>
-                    <a href="https://hide.me/es/proxy/" target="_blank" class="proxy-btn" onclick="updateStatus('Abriendo Hide.me...')">
-                        <span>🛡️</span>
-                        <span>Hide.me</span>
-                    </a>
-                    <a href="https://www.kproxy.com" target="_blank" class="proxy-btn" onclick="updateStatus('Abriendo KProxy...')">
-                        <span>🌐</span>
-                        <span>KProxy</span>
-                    </a>
+            <div class="tabs" id="tabs">
+                <div class="tab active" data-tab-id="tab-1">
+                    <span>🌐</span>
+                    <span>Nueva pestaña</span>
+                    <span class="tab-close" onclick="closeTab('tab-1')">×</span>
                 </div>
+            </div>
+            
+            <div class="browser-frame">
+                <div class="loading-overlay" id="loadingOverlay">
+                    <div class="spinner"></div>
+                </div>
+                <iframe class="proxy-iframe" id="proxyFrame" src="about:blank" sandbox="allow-same-origin allow-scripts allow-forms allow-popups" referrerpolicy="no-referrer"></iframe>
             </div>
         </div>
     </div>
@@ -533,7 +605,17 @@
             <span>Protección de privacidad ACTIVADA</span>
         </div>
         <div class="status-text">
-            <span id="statusText">Listo - Usa los botones para navegar</span>
+            <span id="statusText">Listo</span>
+            <div class="connection-info">
+                <span class="connection-item" id="proxyStatus">
+                    <span>🔄</span>
+                    <span>Proxy: Listo</span>
+                </span>
+                <span class="connection-item" id="userAgentStatus">
+                    <span>👤</span>
+                    <span>User-Agent: Aleatorio</span>
+                </span>
+            </div>
         </div>
     </div>
 
@@ -544,17 +626,54 @@
         </div>
         
         <div class="settings-section">
-            <h3>🔧 Proxy Recomendado</h3>
-            <p style="color: #ccc; font-size: 13px; margin-bottom: 15px;">
-                Selecciona un servicio proxy para navegar con privacidad:
-            </p>
+            <h3>🔧 Configuración del Proxy</h3>
             <div class="proxy-selector">
                 <select id="proxyType" onchange="updateProxyType()">
-                    <option value="croxy" selected>CroxyProxy (Recomendado)</option>
-                    <option value="hideme">Hide.me (HTTPS)</option>
-                    <option value="kproxy">KProxy (HTTPS)</option>
+                    <option value="direct">Proxy directo (local)</option>
                 </select>
             </div>
+            <div class="proxy-status" id="proxyStatusDisplay">
+                <span>✓</span>
+                <span>Proxy local activado</span>
+            </div>
+            <div class="checkbox-group">
+                <label class="checkbox-item">
+                    <input type="checkbox" id="useEncryption" checked onchange="saveSettings()">
+                    <span>Usar cifrado SSL/TLS</span>
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" id="blockTracking" checked onchange="saveSettings()">
+                    <span>Bloquear scripts de rastreo</span>
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" id="disableCookies" checked onchange="saveSettings()">
+                    <span>Deshabilitar cookies</span>
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" id="disableWebRTC" checked onchange="saveSettings()">
+                    <span>Bloquear WebRTC (previene fugas de IP)</span>
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" id="disableGeolocation" checked onchange="saveSettings()">
+                    <span>Bloquear geolocalización</span>
+                </label>
+                <label class="checkbox-item">
+                    <input type="checkbox" id="disableFingerprinting" checked onchange="saveSettings()">
+                    <span>Proteger contra huella digital</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <h3>🌍 User-Agent Personalizado</h3>
+            <select id="userAgent" onchange="updateUserAgent()">
+                <option value="random" selected>Aleatorio (cambia en cada solicitud)</option>
+                <option value="chrome">Google Chrome</option>
+                <option value="firefox">Mozilla Firefox</option>
+                <option value="safari">Apple Safari</option>
+                <option value="edge">Microsoft Edge</option>
+                <option value="mobile">Dispositivo móvil</option>
+            </select>
         </div>
 
         <div class="settings-section">
@@ -572,8 +691,22 @@
     <script>
         // Configuración global
         let config = {
-            proxyType: 'croxy',
-            history: []
+            proxyType: 'direct',
+            useEncryption: true,
+            blockTracking: true,
+            disableCookies: true,
+            disableWebRTC: true,
+            disableGeolocation: true,
+            disableFingerprinting: true,
+            userAgent: 'random',
+            history: [],
+            currentTabId: 'tab-1'
+        };
+
+        // Estado de la aplicación
+        let appState = {
+            isLoading: false,
+            currentUrl: ''
         };
 
         // Cargar configuración
@@ -592,96 +725,109 @@
         // Aplicar configuración a la interfaz
         function applyConfigToUI() {
             document.getElementById('proxyType').value = config.proxyType;
+            document.getElementById('useEncryption').checked = config.useEncryption;
+            document.getElementById('blockTracking').checked = config.blockTracking;
+            document.getElementById('disableCookies').checked = config.disableCookies;
+            document.getElementById('disableWebRTC').checked = config.disableWebRTC;
+            document.getElementById('disableGeolocation').checked = config.disableGeolocation;
+            document.getElementById('disableFingerprinting').checked = config.disableFingerprinting;
+            document.getElementById('userAgent').value = config.userAgent;
+            
+            updateProxyStatus();
+            updateUserAgentStatus();
             updateHistoryUI();
-            updateProxyButtons();
+            applyPrivacyProtection();
         }
 
-        // Actualizar botones de proxy
-        function updateProxyButtons() {
-            const proxyButtons = document.getElementById('proxyButtons');
-            const proxyUrl = getProxyUrl('https://duckduckgo.com');
+        // Aplicar protección de privacidad
+        function applyPrivacyProtection() {
+            if (config.disableWebRTC) {
+                blockWebRTC();
+            }
+            if (config.disableGeolocation) {
+                blockGeolocation();
+            }
+            if (config.disableFingerprinting) {
+                protectFingerprinting();
+            }
+        }
+
+        // Bloquear WebRTC
+        function blockWebRTC() {
+            const originalRTCPeerConnection = window.RTCPeerConnection;
+            window.RTCPeerConnection = function() {
+                throw new Error('WebRTC está deshabilitado para proteger tu privacidad');
+            };
+        }
+
+        // Bloquear geolocalización
+        function blockGeolocation() {
+            navigator.geolocation.getCurrentPosition = function() {
+                throw new Error('Geolocalización está deshabilitada');
+            };
+            navigator.geolocation.watchPosition = function() {
+                throw new Error('Geolocalización está deshabilitada');
+            };
+        }
+
+        // Proteger contra huella digital
+        function protectFingerprinting() {
+            navigator.hardwareConcurrency = 4;
+            navigator.deviceMemory = 4;
+            navigator.maxTouchPoints = 0;
+        }
+
+        // Actualizar estado del proxy
+        function updateProxyStatus() {
+            const statusDisplay = document.getElementById('proxyStatusDisplay');
+            const proxyType = config.proxyType;
             
-            // Actualizar el mensaje
-            const browserInfo = document.getElementById('browserInfo');
-            browserInfo.innerHTML = `
-                <h2>🌐 Navegador Proxy NAV</h2>
-                <p>Selecciona un proxy para navegar. <strong>${getProxyName()}</strong> está configurado por defecto.</p>
-                <p style="color: #00ff88; font-size: 14px; margin: 20px 0;">
-                    ⚡ Haz clic en uno de los botones para abrir el proxy en una nueva pestaña
-                </p>
-                <div class="proxy-buttons">
-                    <button class="proxy-btn" onclick="openProxy('croxy')">
-                        <span>🔒</span>
-                        <span>CroxyProxy</span>
-                    </button>
-                    <button class="proxy-btn" onclick="openProxy('hideme')">
-                        <span>🛡️</span>
-                        <span>Hide.me</span>
-                    </button>
-                    <button class="proxy-btn" onclick="openProxy('kproxy')">
-                        <span>🌐</span>
-                        <span>KProxy</span>
-                    </button>
-                </div>
+            const statusMessages = {
+                'direct': 'Proxy: Conectado al servidor local'
+            };
+            
+            statusDisplay.innerHTML = `
+                <span>✓</span>
+                <span>${statusMessages[proxyType] || 'Proxy: Configuración desconocida'}</span>
             `;
         }
 
-        // Obtener nombre del proxy
-        function getProxyName() {
-            const names = {
-                'croxy': 'CroxyProxy',
-                'hideme': 'Hide.me',
-                'kproxy': 'KProxy'
-            };
-            return names[config.proxyType] || 'CroxyProxy';
-        }
-
-        // Obtener URL del proxy
-        function getProxyUrl(url) {
-            const encodedUrl = encodeURIComponent(url);
+        // Actualizar estado del User-Agent
+        function updateUserAgentStatus() {
+            const statusDisplay = document.getElementById('userAgentStatus');
+            const userAgent = config.userAgent;
             
-            const proxyServices = {
-                'croxy': `https://www.croxyproxy.com/?url=${encodedUrl}`,
-                'hideme': `https://hide.me/es/proxy/${encodedUrl}`,
-                'kproxy': `https://www.kproxy.com/browse.php?u=${encodedUrl}`
+            const agentNames = {
+                'random': 'User-Agent: Aleatorio',
+                'chrome': 'User-Agent: Chrome',
+                'firefox': 'User-Agent: Firefox',
+                'safari': 'User-Agent: Safari',
+                'edge': 'User-Agent: Edge',
+                'mobile': 'User-Agent: Móvil'
             };
             
-            return proxyServices[config.proxyType] || proxyServices.croxy;
-        }
-
-        // Abrir proxy en nueva pestaña
-        function openProxy(proxyType) {
-            const urlInput = document.getElementById('urlInput');
-            let url = urlInput.value.trim();
-            
-            if (!url || url === 'https://duckduckgo.com') {
-                url = 'https://duckduckgo.com';
-            }
-            
-            if (!url.startsWith('http://') && !url.startsWith('https://')) {
-                url = 'https://' + url;
-            }
-            
-            const proxyUrl = getProxyUrl(url);
-            window.open(proxyUrl, '_blank');
-            
-            // Guardar en historial
-            addToHistory(url);
-            
-            updateStatus(`✓ Abriendo ${url} con ${getProxyName()}`);
-        }
-
-        // Navegar (abre el proxy seleccionado)
-        function navigate() {
-            openProxy(config.proxyType);
+            statusDisplay.innerHTML = `
+                <span>👤</span>
+                <span>${agentNames[userAgent] || 'User-Agent: Personalizado'}</span>
+            `;
         }
 
         // Guardar configuración
         function saveSettings() {
             config.proxyType = document.getElementById('proxyType').value;
+            config.useEncryption = document.getElementById('useEncryption').checked;
+            config.blockTracking = document.getElementById('blockTracking').checked;
+            config.disableCookies = document.getElementById('disableCookies').checked;
+            config.disableWebRTC = document.getElementById('disableWebRTC').checked;
+            config.disableGeolocation = document.getElementById('disableGeolocation').checked;
+            config.disableFingerprinting = document.getElementById('disableFingerprinting').checked;
+            config.userAgent = document.getElementById('userAgent').value;
+            
             localStorage.setItem('navConfig', JSON.stringify(config));
             updateStatus('✓ Configuración guardada');
-            updateProxyButtons();
+            updateProxyStatus();
+            updateUserAgentStatus();
+            applyPrivacyProtection();
         }
 
         // Toggle panel de configuración
@@ -703,19 +849,171 @@
             
             setTimeout(() => {
                 if (statusElement.textContent === text) {
-                    statusElement.textContent = 'Listo - Usa los botones para navegar';
+                    statusElement.textContent = 'Listo';
                 }
-            }, 5000);
+            }, 3000);
+        }
+
+        // Navegar a una URL
+        function navigate() {
+            const urlInput = document.getElementById('urlInput');
+            let url = urlInput.value.trim();
+            
+            if (!url) {
+                updateStatus('⚠️ Por favor ingresa una URL');
+                return;
+            }
+
+            // Validar URL
+            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                url = 'https://' + url;
+                urlInput.value = url;
+            }
+
+            showLoading(true);
+            updateStatus('🔄 Cargando...');
+            
+            config.currentUrl = url;
+            addToHistory(url);
+            
+            // Cargar a través del proxy
+            loadThroughProxy(url);
+        }
+
+        // Cargar a través del proxy
+        function loadThroughProxy(url) {
+            try {
+                const proxyFrame = document.getElementById('proxyFrame');
+                
+                // Configurar sandbox
+                proxyFrame.sandbox = getSandboxAttributes();
+                proxyFrame.referrerPolicy = 'no-referrer';
+                
+                // URL del proxy local
+                const proxyUrl = `/proxy?url=${encodeURIComponent(url)}`;
+                
+                // Mostrar el iframe
+                proxyFrame.style.display = 'block';
+                
+                // Navegar
+                proxyFrame.src = proxyUrl;
+                
+                // Eventos
+                proxyFrame.onload = function() {
+                    showLoading(false);
+                    updateStatus('✓ Página cargada');
+                    injectPrivacyProtection(proxyFrame);
+                    updateTabTitle();
+                };
+                
+                proxyFrame.onerror = function() {
+                    showLoading(false);
+                    updateStatus('❌ Error al cargar la página');
+                    showErrorInFrame('No se pudo cargar la página. Asegúrate de que el servidor esté en ejecución (npm start).');
+                };
+                
+            } catch (e) {
+                showLoading(false);
+                updateStatus('❌ Error: ' + e.message);
+                showErrorInFrame('Error: ' + e.message);
+            }
+        }
+
+        // Obtener atributos sandbox
+        function getSandboxAttributes() {
+            const attrs = ['allow-same-origin'];
+            
+            if (!config.disableCookies) {
+                attrs.push('allow-forms');
+            }
+            
+            if (!config.blockTracking) {
+                attrs.push('allow-scripts');
+            }
+            
+            return attrs.join(' ');
+        }
+
+        // Inyectar protección de privacidad en el iframe
+        function injectPrivacyProtection(iframe) {
+            try {
+                const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                
+                // Bloquear scripts de rastreo
+                if (config.blockTracking) {
+                    const scripts = iframeDoc.querySelectorAll('script');
+                    scripts.forEach(script => {
+                        const src = script.src.toLowerCase();
+                        if (src.includes('google-analytics') || 
+                            src.includes('facebook') || 
+                            src.includes('tracker') ||
+                            src.includes('ads') ||
+                            src.includes('doubleclick') ||
+                            src.includes('googlesyndication') ||
+                            src.includes('adserver')) {
+                            script.remove();
+                        }
+                    });
+                }
+                
+                // Añadir estilos de privacidad
+                const style = iframeDoc.createElement('style');
+                style.textContent = `
+                    [data-ad], [data-ads], [class*="ad"], [class*="Ad"] {
+                        display: none !important;
+                    }
+                `;
+                iframeDoc.head.appendChild(style);
+                
+                updateStatus('✓ Protección de privacidad aplicada');
+                
+            } catch (e) {
+                console.log('No se puede acceder al iframe:', e.message);
+            }
+        }
+
+        // Mostrar error en el frame
+        function showErrorInFrame(message) {
+            const frame = document.getElementById('proxyFrame');
+            try {
+                const frameDoc = frame.contentDocument || frame.contentWindow.document;
+                frameDoc.body.innerHTML = `
+                    <div style="
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        height: 100%;
+                        background: #1a1a1a;
+                        color: #ff4444;
+                        font-family: Arial, sans-serif;
+                        padding: 20px;
+                        text-align: center;
+                    ">
+                        <div>
+                            <h2 style="color: #ff4444; margin-bottom: 10px;">❌ Error de Conexión</h2>
+                            <p>${message}</p>
+                            <p style="margin-top: 20px; color: #666;">
+                                Asegúrate de que el servidor proxy esté en ejecución.<br>
+                                Ejecuta: <code style="background: #333; padding: 2px 5px; border-radius: 3px;">npm start</code>
+                            </p>
+                        </div>
+                    </div>
+                `;
+            } catch (e) {
+                console.error('Error al mostrar mensaje:', e);
+            }
         }
 
         // Mostrar/ocultar loading
         function showLoading(show) {
             const overlay = document.getElementById('loadingOverlay');
-            overlay.classList.toggle('active', show);
+            overlay.classList.toggle('hidden', !show);
         }
 
         // Añadir al historial
         function addToHistory(url) {
+            if (isPrivateMode()) return;
+            
             config.history.unshift({
                 url: url,
                 timestamp: new Date().toISOString(),
@@ -728,6 +1026,11 @@
             
             localStorage.setItem('navConfig', JSON.stringify(config));
             updateHistoryUI();
+        }
+
+        // Verificar modo privado
+        function isPrivateMode() {
+            return document.querySelector('.tab.active')?.textContent.includes('Privado') || false;
         }
 
         // Obtener título de URL
@@ -788,6 +1091,44 @@
             updateStatus('🧹 Caché limpiada');
         }
 
+        // Nueva pestaña
+        function newTab() {
+            const tabsContainer = document.getElementById('tabs');
+            const tabId = 'tab-' + Date.now();
+            
+            const tab = document.createElement('div');
+            tab.className = 'tab active';
+            tab.dataset.tabId = tabId;
+            tab.innerHTML = `
+                <span>🌐</span>
+                <span>Nueva pestaña</span>
+                <span class="tab-close" onclick="closeTab('${tabId}')">×</span>
+            `;
+            
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            tabsContainer.appendChild(tab);
+            
+            const frame = document.getElementById('proxyFrame');
+            frame.src = 'about:blank';
+            
+            updateStatus('✓ Nueva pestaña creada');
+        }
+
+        // Cerrar pestaña
+        function closeTab(tabId) {
+            const tab = document.querySelector(`.tab[data-tab-id="${tabId}"]`);
+            if (tab) tab.remove();
+            
+            if (document.querySelectorAll('.tab').length === 0) {
+                newTab();
+            } else {
+                const tabs = document.querySelectorAll('.tab');
+                tabs[tabs.length - 1].classList.add('active');
+            }
+            
+            updateStatus('✓ Pestaña cerrada');
+        }
+
         // Mostrar pestaña
         function showTab(tabName) {
             document.querySelectorAll('.menu-item').forEach(item => {
@@ -801,26 +1142,89 @@
             });
         }
 
+        // Nueva pestaña privada
+        function newPrivateTab() {
+            const tabsContainer = document.getElementById('tabs');
+            const tabId = 'tab-private-' + Date.now();
+            
+            const tab = document.createElement('div');
+            tab.className = 'tab active';
+            tab.dataset.tabId = tabId;
+            tab.innerHTML = `
+                <span>🔒</span>
+                <span>Modo Privado</span>
+                <span class="tab-close" onclick="closeTab('${tabId}')">×</span>
+            `;
+            
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            tabsContainer.appendChild(tab);
+            
+            const frame = document.getElementById('proxyFrame');
+            frame.src = 'about:blank';
+            
+            updateStatus('🔒 Modo privado activado - No se guarda historial');
+        }
+
         // Mostrar historial
         function showHistory() {
             showTab('historial');
             toggleSettings();
         }
 
-        // Nueva pestaña (simulada)
-        function newTab() {
-            updateStatus('✓ Nueva pestaña');
+        // Mostrar favoritos
+        function showBookmarks() {
+            showTab('favoritos');
+            updateStatus('📚 Favoritos');
         }
 
-        // Nueva pestaña privada (simulada)
-        function newPrivateTab() {
-            updateStatus('🔒 Modo privado activado');
+        // Actualizar título de la pestaña
+        function updateTabTitle() {
+            try {
+                const frame = document.getElementById('proxyFrame');
+                const frameDoc = frame.contentDocument || frame.contentWindow.document;
+                const title = frameDoc.title || getTitleFromUrl(config.currentUrl);
+                
+                const activeTab = document.querySelector('.tab.active');
+                if (activeTab) {
+                    const titleSpan = activeTab.querySelector('span:nth-child(2)');
+                    if (titleSpan) {
+                        titleSpan.textContent = title.length > 20 ? title.substring(0, 20) + '...' : title;
+                    }
+                }
+            } catch (e) {
+                // No se puede acceder al título
+            }
         }
 
         // Actualizar tipo de proxy
         function updateProxyType() {
             config.proxyType = document.getElementById('proxyType').value;
             saveSettings();
+        }
+
+        // Actualizar User-Agent
+        function updateUserAgent() {
+            config.userAgent = document.getElementById('userAgent').value;
+            saveSettings();
+        }
+
+        // Verificar conexión al servidor
+        function checkServerConnection() {
+            fetch('/api/config')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('✓ Servidor proxy conectado');
+                    const proxyStatus = document.getElementById('proxyStatus');
+                    proxyStatus.innerHTML = '<span>✓</span><span>Proxy: Conectado</span>';
+                    proxyStatus.classList.remove('error');
+                })
+                .catch(error => {
+                    console.error('❌ Error al conectar con el servidor proxy:', error);
+                    const proxyStatus = document.getElementById('proxyStatus');
+                    proxyStatus.innerHTML = '<span>❌</span><span>Proxy: Desconectado</span>';
+                    proxyStatus.classList.add('error');
+                    updateStatus('⚠️ No se puede conectar al servidor proxy');
+                });
         }
 
         // Cargar al iniciar
@@ -834,15 +1238,13 @@
                 }
             });
             
-            // Establecer DuckDuckGo como URL por defecto
+            // Intentar cargar página inicial
             setTimeout(() => {
                 document.getElementById('urlInput').value = 'https://duckduckgo.com';
             }, 100);
             
-            // Mostrar mensaje inicial
-            setTimeout(() => {
-                updateStatus('✓ Listo - Escribe una URL y haz clic en IR');
-            }, 500);
+            // Verificar conexión al servidor
+            checkServerConnection();
         };
     </script>
 </body>

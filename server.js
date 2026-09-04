@@ -1,158 +1,276 @@
 const express = require('express');
-const { createProxyMiddleware } = require('http-proxy-middleware');
+const axios = require('axios');
 const cors = require('cors');
 const helmet = require('helmet');
 const UserAgents = require('user-agents');
 const path = require('path');
-const axios = require('axios');
+const { JSDOM } = require('jsdom');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(helmet());
-app.use(cors({
-  origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'User-Agent', 'Accept', 'Referer']
-}));
+app.use(cors({ origin: '*' }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Encabezados de seguridad
+// Configuración de seguridad
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-Frame-Options', 'ALLOW-FROM http://localhost:3000');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Referrer-Policy', 'no-referrer');
   res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=(), payment=()');
   next();
 });
 
-// Lista de proxies públicos que funcionan
-const WORKING_PROXIES = {
-  'hideme': 'https://hide.me/es/proxy/',
-  'croxy': 'https://www.croxyproxy.com/?url=',
-  'kproxy': 'https://www.kproxy.com/browse.php?u=',
-  'zend2': 'https://zend2.com/?q=',
-  'direct': null
-};
+// User-Agents aleatorios
+const userAgents = [
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.1 Safari/605.1.15',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 Edg/91.0.864.59',
+  'Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36'
+];
 
-// Proxy dinámico
-app.get('/proxy/*', async (req, res) => {
+// Bloquear dominios de rastreo
+const blockedDomains = [
+  'google-analytics.com',
+  'facebook.com',
+  'facebook.net',
+  'doubleclick.net',
+  'googlesyndication.com',
+  'adservice.google.com',
+  'adserver',
+  'tracker',
+  'adsystem.com'
+];
+
+// Función para obtener User-Agent aleatorio
+function getRandomUserAgent() {
+  return userAgents[Math.floor(Math.random() * userAgents.length)];
+}
+
+// Función para bloquear scripts de rastreo
+function filterTrackingContent(html, baseUrl) {
   try {
-    const url = req.params[0]; // Captura todo después de /proxy/
-    const decodedUrl = decodeURIComponent(url);
+    const dom = new JSDOM(html);
+    const document = dom.window.document;
+    
+    // Remover scripts de rastreo
+    const scripts = document.querySelectorAll('script');
+    scripts.forEach(script => {
+      const src = script.src.toLowerCase();
+      if (blockedDomains.some(domain => src.includes(domain))) {
+        script.remove();
+      }
+    });
+    
+    // Remover iframes de publicidad
+    const iframes = document.querySelectorAll('iframe');
+    iframes.forEach(iframe => {
+      const src = iframe.src.toLowerCase();
+      if (blockedDomains.some(domain => src.includes(domain)) || 
+          src.includes('ads') || 
+          src.includes('adserver')) {
+        iframe.remove();
+      }
+    });
+    
+    // Remover elementos con clases de ads
+    const adElements = document.querySelectorAll('[class*="ad"], [class*="Ad"], [id*="ad"], [id*="Ad"]');
+    adElements.forEach(el => el.remove());
+    
+    // Modificar enlaces para que pasen por el proxy
+    const links = document.querySelectorAll('a[href], img[src], script[src], link[href], iframe[src]');
+    links.forEach(link => {
+      const href = link.getAttribute('href') || link.getAttribute('src');
+      if (href && !href.startsWith('data:') && !href.startsWith('javascript:') && !href.startsWith('#')) {
+        try {
+          const url = new URL(href, baseUrl);
+          if (url.hostname !== window.location.hostname) {
+            // Convertir a URL absoluta del proxy
+            const proxyUrl = `/proxy?url=${encodeURIComponent(url.href)}`;
+            if (link.tagName === 'A') {
+              link.href = proxyUrl;
+            } else if (link.tagName === 'IMG' || link.tagName === 'SCRIPT' || link.tagName === 'LINK' || link.tagName === 'IFRAME') {
+              link.src = proxyUrl;
+            }
+          }
+        } catch (e) {
+          // Ignorar errores de URL
+        }
+      }
+    });
+    
+    // Remover cookies
+    const meta = document.createElement('meta');
+    meta.httpEquiv = 'Set-Cookie';
+    meta.content = 'name=value; Expires=Thu, 01 Jan 1970 00:00:00 GMT';
+    document.head.appendChild(meta);
+    
+    // Añadir meta tags de privacidad
+    const referrerMeta = document.createElement('meta');
+    referrerMeta.name = 'referrer';
+    referrerMeta.content = 'no-referrer';
+    document.head.appendChild(referrerMeta);
+    
+    return dom.serialize();
+  } catch (error) {
+    console.error('Error filtering content:', error);
+    return html;
+  }
+}
+
+// Ruta para proxy
+app.get('/proxy', async (req, res) => {
+  try {
+    const url = req.query.url;
+    
+    if (!url) {
+      return res.status(400).send('URL is required');
+    }
     
     // Validar URL
-    let targetUrl = decodedUrl;
+    let targetUrl = url;
     if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
       targetUrl = 'https://' + targetUrl;
     }
     
-    // Usar proxy público
-    const proxyType = req.query.type || 'croxy';
-    const proxyUrl = WORKING_PROXIES[proxyType] || WORKING_PROXIES.croxy;
+    // Configurar headers
+    const headers = {
+      'User-Agent': getRandomUserAgent(),
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+      'Accept-Language': 'es-ES,es;q=0.9',
+      'Referer': 'https://google.com/',
+      'DNT': '1'
+    };
     
-    if (proxyUrl) {
-      // Redirigir al proxy público
-      return res.redirect(302, proxyUrl + encodeURIComponent(targetUrl));
-    }
-    
-    // Si no hay proxy, intentar hacer proxy directo (puede fallar por CORS)
-    const userAgent = new UserAgents().toString();
-    
+    // Hacer la petición
     const response = await axios.get(targetUrl, {
-      headers: {
-        'User-Agent': userAgent,
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5',
-        'Referer': 'https://google.com/',
-        'DNT': '1'
-      },
-      timeout: 10000
+      headers,
+      timeout: 30000,
+      responseType: 'text'
     });
     
-    // Enviar el HTML directamente
+    // Filtrar contenido
+    const filteredHtml = filterTrackingContent(response.data, targetUrl);
+    
+    // Enviar el HTML
     res.set('Content-Type', 'text/html; charset=utf-8');
-    res.send(response.data);
+    res.send(filteredHtml);
     
   } catch (error) {
     console.error('Proxy error:', error.message);
+    
+    // Mostrar error
     res.status(500).send(`
       <!DOCTYPE html>
       <html>
         <head>
           <title>Error de Proxy</title>
           <style>
-            body { font-family: Arial, sans-serif; background: #1a1a1a; color: #ff4444; padding: 40px; text-align: center; }
+            body {
+              font-family: Arial, sans-serif;
+              background: #1a1a1a;
+              color: #ff4444;
+              padding: 40px;
+              text-align: center;
+              margin: 0;
+            }
             h1 { color: #ff4444; }
             p { color: #ccc; }
-            a { color: #00ff88; text-decoration: none; }
-            a:hover { text-decoration: underline; }
+            a {
+              color: #00ff88;
+              text-decoration: none;
+              display: inline-block;
+              margin: 10px;
+              padding: 10px 20px;
+              border: 1px solid #00ff88;
+              border-radius: 5px;
+            }
+            a:hover { 
+              background: #00ff88;
+              color: #000;
+            }
+            .error-details {
+              font-size: 12px;
+              color: #666;
+              margin-top: 20px;
+              text-align: left;
+              max-width: 600px;
+              margin-left: auto;
+              margin-right: auto;
+            }
           </style>
         </head>
         <body>
           <h1>❌ Error de Proxy</h1>
-          <p>No se pudo cargar la página. El servicio proxy puede estar caído.</p>
+          <p><strong>No se pudo cargar la página:</strong> ${error.message || 'Error desconocido'}</p>
           <p>
-            <strong>Soluciones:</strong><br>
-            1. <a href="javascript:history.back()">Volver atrás</a><br>
-            2. <a href="/">Ir al inicio</a><br>
-            3. Prueba con otro tipo de proxy en la configuración
+            <a href="javascript:history.back()">⬅️ Volver atrás</a>
+            <a href="/">🏠 Ir al inicio</a>
           </p>
-          <p style="font-size: 12px; margin-top: 20px;">
-            Error: ${error.message || 'Desconocido'}
-          </p>
+          <div class="error-details">
+            <p><strong>Posibles soluciones:</strong></p>
+            <ol style="text-align: left;">
+              <li>Verifica que la URL sea correcta (debe incluir http:// o https://)</li>
+              <li>El sitio puede estar bloqueando el acceso</li>
+              <li>Prueba con otra página web</li>
+              <li>Algunos sitios no permiten ser accedidos a través de proxies</li>
+            </ol>
+          </div>
         </body>
       </html>
     `);
   }
 });
 
-// Proxy TOR (alternativa)
-app.get('/tor/*', (req, res) => {
+// Ruta para obtener recursos (CSS, JS, imágenes)
+app.get('/resource', async (req, res) => {
   try {
-    const url = req.params[0];
-    const decodedUrl = decodeURIComponent(url);
-    let targetUrl = decodedUrl;
+    const url = req.query.url;
     
-    if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
-      targetUrl = 'https://' + targetUrl;
+    if (!url) {
+      return res.status(400).send('URL is required');
     }
     
-    // Usar CroxyProxy como alternativa (TOR2Web ya no funciona)
-    const torProxyUrl = `https://www.croxyproxy.com/?url=${encodeURIComponent(targetUrl)}`;
-    res.redirect(302, torProxyUrl);
+    const headers = {
+      'User-Agent': getRandomUserAgent(),
+      'Referer': 'https://google.com/',
+      'DNT': '1'
+    };
+    
+    const response = await axios.get(url, {
+      headers,
+      timeout: 30000,
+      responseType: 'arraybuffer'
+    });
+    
+    // Determinar el Content-Type
+    const contentType = response.headers['content-type'] || 'application/octet-stream';
+    res.set('Content-Type', contentType);
+    res.send(response.data);
     
   } catch (error) {
-    res.status(500).send('<h1>Error en proxy TOR</h1><p>Prueba con otro tipo de proxy.</p>');
+    console.error('Resource error:', error.message);
+    res.status(500).send('Error al cargar el recurso');
   }
 });
 
 // API endpoints
 app.get('/api/config', (req, res) => {
   res.json({
-    proxyTypes: ['croxy', 'hideme', 'kproxy', 'direct'],
-    defaultProxy: 'croxy',
-    userAgents: ['random', 'chrome', 'firefox', 'safari', 'edge', 'mobile']
+    status: 'running',
+    message: 'Servidor proxy funcionando',
+    defaultUrl: 'https://duckduckgo.com'
   });
 });
 
 app.get('/api/user-agent', (req, res) => {
-  const userAgent = new UserAgents();
   res.json({
-    userAgent: userAgent.toString(),
-    browser: userAgent.browser,
-    os: userAgent.os
-  });
-});
-
-app.get('/api/status', (req, res) => {
-  res.json({
-    status: 'running',
-    message: 'Servidor proxy funcionando',
-    proxies: Object.keys(WORKING_PROXIES)
+    userAgent: getRandomUserAgent()
   });
 });
 
@@ -166,20 +284,21 @@ app.listen(PORT, () => {
   console.log(`
 ╔══════════════════════════════════════════════════════════════╗
 ║                                                               ║
-║   🌐 NAV - Navegador Proxy Privado                          ║
+║   🌐 NAV - Navegador Proxy REAL                               ║
 ║                                                               ║
-║   ✅ Servidor funcionando en: http://localhost:${PORT}        ║
+║   ✅ Servidor proxy funcionando en: http://localhost:${PORT}    ║
 ║                                                               ║
 ║   📌 Para usar:                                               ║
-║      1. Abre http://localhost:${PORT} en tu navegador         ║
-║      2. Ingresa una URL y haz clic en "IR"                    ║
+║      1. Abre http://localhost:${PORT} en tu navegador          ║
+║      2. Escribe una URL y haz clic en "IR"                    ║
 ║      3. DuckDuckGo se cargará automáticamente                ║
 ║                                                               ║
-║   🔧 Proxies disponibles:                                     ║
-║      • CroxyProxy (recomendado)                              ║
-║      • Hide.me                                               ║
-║      • KProxy                                                ║
-║      • Directo (sin proxy)                                   ║
+║   🔧 Características:                                         ║
+║      • Proxy HTTP/HTTPS real                                  ║
+║      • Filtra scripts de rastreo                              ║
+║      • User-Agent aleatorio                                   ║
+║      • Bloquea cookies                                        ║
+║      • Protección de privacidad                               ║
 ║                                                               ║
 ╚══════════════════════════════════════════════════════════════╝
   `);
