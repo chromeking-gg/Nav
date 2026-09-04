@@ -76,7 +76,6 @@
         .nav-button:hover {
             transform: translateY(-2px);
             box-shadow: 0 5px 20px rgba(0, 255, 136, 0.4);
-            background: linear-gradient(45deg, #00e67a, #00b359);
         }
 
         .nav-button:active {
@@ -312,14 +311,6 @@
             gap: 5px;
         }
 
-        .connection-item.active {
-            color: #00ff88;
-        }
-
-        .connection-item.inactive {
-            color: #666;
-        }
-
         .settings-panel {
             position: fixed;
             top: 0;
@@ -485,16 +476,6 @@
             margin: 10px;
         }
 
-        .success-message {
-            color: #00ff88;
-            padding: 20px;
-            text-align: center;
-            font-size: 14px;
-            background: rgba(0, 255, 136, 0.1);
-            border-radius: 8px;
-            margin: 10px;
-        }
-
         .toggle-sidebar {
             background: #333;
             color: #fff;
@@ -576,10 +557,6 @@
                     <span class="menu-icon">📜</span>
                     <span>Historial</span>
                 </div>
-                <div class="menu-item" onclick="showBookmarks()">
-                    <span class="menu-icon">⭐</span>
-                    <span>Favoritos</span>
-                </div>
             </div>
             
             <div class="sidebar-section">
@@ -614,7 +591,7 @@
                 <div class="loading-overlay" id="loadingOverlay">
                     <div class="spinner"></div>
                 </div>
-                <iframe id="proxyFrame" sandbox="allow-same-origin allow-scripts allow-forms" referrerpolicy="no-referrer" style="display: none;"></iframe>
+                <iframe id="proxyFrame" sandbox="allow-same-origin allow-scripts allow-forms allow-popups" referrerpolicy="no-referrer" style="display: none;"></iframe>
             </div>
         </div>
     </div>
@@ -629,7 +606,7 @@
             <div class="connection-info">
                 <span class="connection-item" id="proxyStatus">
                     <span>🔄</span>
-                    <span>Proxy: Conectado</span>
+                    <span>Proxy: Listo</span>
                 </span>
                 <span class="connection-item" id="userAgentStatus">
                     <span>👤</span>
@@ -649,52 +626,26 @@
             <h3>🔧 Configuración del Proxy</h3>
             <div class="proxy-selector">
                 <select id="proxyType" onchange="updateProxyType()">
-                    <option value="direct">Sin proxy (directo)</option>
-                    <option value="https">Proxy HTTPS</option>
-                    <option value="tor" selected>Red TOR (recomendado)</option>
+                    <option value="hideme">Hide.me (HTTPS)</option>
+                    <option value="croxy">CroxyProxy (HTTPS)</option>
+                    <option value="tor2web" selected>TOR2Web (Anónimo)</option>
+                    <option value="direct">Directo (sin proxy)</option>
                 </select>
             </div>
             <div class="proxy-status" id="proxyStatusDisplay">
                 <span>✓</span>
-                <span>Proxy TOR seleccionado</span>
-            </div>
-            <div class="checkbox-group">
-                <label class="checkbox-item">
-                    <input type="checkbox" id="useEncryption" checked onchange="saveSettings()">
-                    <span>Usar cifrado SSL/TLS</span>
-                </label>
-                <label class="checkbox-item">
-                    <input type="checkbox" id="blockTracking" checked onchange="saveSettings()">
-                    <span>Bloquear scripts de rastreo</span>
-                </label>
-                <label class="checkbox-item">
-                    <input type="checkbox" id="disableCookies" checked onchange="saveSettings()">
-                    <span>Deshabilitar cookies</span>
-                </label>
-                <label class="checkbox-item">
-                    <input type="checkbox" id="disableWebRTC" checked onchange="saveSettings()">
-                    <span>Bloquear WebRTC (previene fugas de IP)</span>
-                </label>
-                <label class="checkbox-item">
-                    <input type="checkbox" id="disableGeolocation" checked onchange="saveSettings()">
-                    <span>Bloquear geolocalización</span>
-                </label>
-                <label class="checkbox-item">
-                    <input type="checkbox" id="disableFingerprinting" checked onchange="saveSettings()">
-                    <span>Proteger contra huella digital</span>
-                </label>
+                <span>Proxy TOR2Web seleccionado</span>
             </div>
         </div>
 
         <div class="settings-section">
-            <h3>🌍 User-Agent Personalizado</h3>
+            <h3>🌍 User-Agent</h3>
             <select id="userAgent" onchange="updateUserAgent()">
-                <option value="random" selected>Aleatorio (cambia en cada solicitud)</option>
-                <option value="chrome">Google Chrome</option>
-                <option value="firefox">Mozilla Firefox</option>
-                <option value="safari">Apple Safari</option>
-                <option value="edge">Microsoft Edge</option>
-                <option value="mobile">Dispositivo móvil</option>
+                <option value="random" selected>Aleatorio</option>
+                <option value="chrome">Chrome</option>
+                <option value="firefox">Firefox</option>
+                <option value="safari">Safari</option>
+                <option value="edge">Edge</option>
             </select>
         </div>
 
@@ -713,24 +664,10 @@
     <script>
         // Configuración global
         let config = {
-            proxyType: 'tor',
-            useEncryption: true,
-            blockTracking: true,
-            disableCookies: true,
-            disableWebRTC: true,
-            disableGeolocation: true,
-            disableFingerprinting: true,
+            proxyType: 'tor2web',
             userAgent: 'random',
             history: [],
-            tabs: [],
             currentTabId: 'tab-1'
-        };
-
-        // Estado de la aplicación
-        let appState = {
-            isLoading: false,
-            currentUrl: '',
-            userAgent: ''
         };
 
         // Cargar configuración
@@ -749,113 +686,47 @@
         // Aplicar configuración a la interfaz
         function applyConfigToUI() {
             document.getElementById('proxyType').value = config.proxyType;
-            document.getElementById('useEncryption').checked = config.useEncryption;
-            document.getElementById('blockTracking').checked = config.blockTracking;
-            document.getElementById('disableCookies').checked = config.disableCookies;
-            document.getElementById('disableWebRTC').checked = config.disableWebRTC;
-            document.getElementById('disableGeolocation').checked = config.disableGeolocation;
-            document.getElementById('disableFingerprinting').checked = config.disableFingerprinting;
             document.getElementById('userAgent').value = config.userAgent;
-            
             updateProxyStatus();
             updateUserAgentStatus();
             updateHistoryUI();
-            
-            // Aplicar protección de privacidad
-            applyPrivacyProtection();
-        }
-
-        // Aplicar protección de privacidad
-        function applyPrivacyProtection() {
-            if (config.disableWebRTC) {
-                blockWebRTC();
-            }
-            if (config.disableGeolocation) {
-                blockGeolocation();
-            }
-            if (config.disableFingerprinting) {
-                protectFingerprinting();
-            }
-        }
-
-        // Bloquear WebRTC
-        function blockWebRTC() {
-            const originalRTCPeerConnection = window.RTCPeerConnection;
-            window.RTCPeerConnection = function() {
-                throw new Error('WebRTC está deshabilitado para proteger tu privacidad');
-            };
-        }
-
-        // Bloquear geolocalización
-        function blockGeolocation() {
-            navigator.geolocation.getCurrentPosition = function() {
-                throw new Error('Geolocalización está deshabilitada');
-            };
-            navigator.geolocation.watchPosition = function() {
-                throw new Error('Geolocalización está deshabilitada');
-            };
-        }
-
-        // Proteger contra huella digital
-        function protectFingerprinting() {
-            navigator.hardwareConcurrency = 4;
-            navigator.deviceMemory = 4;
-            navigator.maxTouchPoints = 0;
         }
 
         // Actualizar estado del proxy
         function updateProxyStatus() {
             const statusDisplay = document.getElementById('proxyStatusDisplay');
             const proxyType = config.proxyType;
-            
-            const statusMessages = {
-                'direct': 'Proxy: Desactivado (conexión directa)',
-                'https': 'Proxy: HTTPS activado',
-                'tor': 'Proxy: TOR activado (máxima privacidad)'
+            const messages = {
+                'hideme': 'Proxy: Hide.me (HTTPS)',
+                'croxy': 'Proxy: CroxyProxy (HTTPS)',
+                'tor2web': 'Proxy: TOR2Web (Anónimo)',
+                'direct': 'Proxy: Desactivado'
             };
-            
-            statusDisplay.innerHTML = `
-                <span>✓</span>
-                <span>${statusMessages[proxyType] || 'Proxy: Configuración desconocida'}</span>
-            `;
+            statusDisplay.innerHTML = `<span>✓</span><span>${messages[proxyType] || 'Proxy: Desconocido'}</span>`;
         }
 
         // Actualizar estado del User-Agent
         function updateUserAgentStatus() {
             const statusDisplay = document.getElementById('userAgentStatus');
             const userAgent = config.userAgent;
-            
             const agentNames = {
                 'random': 'User-Agent: Aleatorio',
                 'chrome': 'User-Agent: Chrome',
                 'firefox': 'User-Agent: Firefox',
                 'safari': 'User-Agent: Safari',
-                'edge': 'User-Agent: Edge',
-                'mobile': 'User-Agent: Móvil'
+                'edge': 'User-Agent: Edge'
             };
-            
-            statusDisplay.innerHTML = `
-                <span>👤</span>
-                <span>${agentNames[userAgent] || 'User-Agent: Personalizado'}</span>
-            `;
+            statusDisplay.innerHTML = `<span>👤</span><span>${agentNames[userAgent] || 'User-Agent: Personalizado'}</span>`;
         }
 
         // Guardar configuración
         function saveSettings() {
             config.proxyType = document.getElementById('proxyType').value;
-            config.useEncryption = document.getElementById('useEncryption').checked;
-            config.blockTracking = document.getElementById('blockTracking').checked;
-            config.disableCookies = document.getElementById('disableCookies').checked;
-            config.disableWebRTC = document.getElementById('disableWebRTC').checked;
-            config.disableGeolocation = document.getElementById('disableGeolocation').checked;
-            config.disableFingerprinting = document.getElementById('disableFingerprinting').checked;
             config.userAgent = document.getElementById('userAgent').value;
-            
             localStorage.setItem('navConfig', JSON.stringify(config));
             updateStatus('✓ Configuración guardada');
             updateProxyStatus();
             updateUserAgentStatus();
-            applyPrivacyProtection();
         }
 
         // Toggle panel de configuración
@@ -874,8 +745,6 @@
         function updateStatus(text) {
             const statusElement = document.getElementById('statusText');
             statusElement.textContent = text;
-            
-            // Limpiar después de 3 segundos
             setTimeout(() => {
                 if (statusElement.textContent === text) {
                     statusElement.textContent = 'Listo';
@@ -889,7 +758,7 @@
             let url = urlInput.value.trim();
             
             if (!url) {
-                updateStatus('⚠️ Por favor ingresa una URL');
+                updateStatus('⚠️ Ingresa una URL');
                 return;
             }
 
@@ -902,51 +771,37 @@
             showLoading(true);
             updateStatus('🔄 Cargando...');
             
-            config.currentUrl = url;
-            
             // Guardar en historial
             addToHistory(url);
-
-            // Usar el proxy para cargar la página
-            loadThroughProxy(url);
+            
+            // Cargar la página
+            loadPage(url);
         }
 
-        // Cargar a través del proxy
-        function loadThroughProxy(url) {
+        // Cargar página
+        function loadPage(url) {
             try {
                 const proxyFrame = document.getElementById('proxyFrame');
                 
-                // Configurar sandbox y políticas de seguridad
-                proxyFrame.sandbox = getSandboxAttributes();
-                proxyFrame.referrerPolicy = 'no-referrer';
+                // Obtener URL del proxy
+                const proxyUrl = getProxyUrl(url);
                 
-                // Configurar proxy según tipo seleccionado
-                let proxyUrl = getProxyUrl(url);
-                
-                // Mostrar el iframe
+                // Configurar iframe
                 proxyFrame.style.display = 'block';
-                
-                // Navegar
                 proxyFrame.src = proxyUrl;
                 
-                // Cuando carga
+                // Eventos
                 proxyFrame.onload = function() {
                     showLoading(false);
                     updateStatus('✓ Página cargada');
-                    
-                    // Inyectar protección adicional
                     injectPrivacyProtection(proxyFrame);
-                    
-                    // Actualizar título de la pestaña
                     updateTabTitle();
                 };
                 
                 proxyFrame.onerror = function() {
                     showLoading(false);
-                    updateStatus('❌ Error al cargar la página');
-                    
-                    // Mostrar mensaje de error en el iframe
-                    showErrorInFrame('No se pudo cargar la página. Intenta con otro tipo de proxy.');
+                    updateStatus('❌ Error al cargar');
+                    showErrorInFrame('No se pudo cargar. Prueba otro proxy.');
                 };
                 
             } catch (e) {
@@ -956,118 +811,49 @@
             }
         }
 
-        // Obtener URL del proxy
+        // Obtener URL del proxy (servicios públicos)
         function getProxyUrl(url) {
-            // Usar el servidor proxy local
             const encodedUrl = encodeURIComponent(url);
             
-            const proxyRoutes = {
-                'direct': `/proxy/${encodedUrl}`,
-                'https': `/proxy/${encodedUrl}`,
-                'tor': `/tor/${encodedUrl}`
+            const proxyServices = {
+                'hideme': `https://hide.me/es/proxy/${encodedUrl}`,
+                'croxy': `https://www.croxyproxy.com/?url=${encodedUrl}`,
+                'tor2web': `https://www.tor2web.org/webtunnel/?q=${encodedUrl}`,
+                'direct': url
             };
             
-            return proxyRoutes[config.proxyType] || `/proxy/${encodedUrl}`;
+            return proxyServices[config.proxyType] || url;
         }
 
-        // Obtener atributos sandbox
-        function getSandboxAttributes() {
-            const attrs = ['allow-same-origin'];
-            
-            if (!config.disableCookies) {
-                attrs.push('allow-forms');
-            }
-            
-            if (!config.blockTracking) {
-                attrs.push('allow-scripts');
-            }
-            
-            return attrs.join(' ');
-        }
-
-        // Obtener User-Agent
-        function getUserAgent() {
-            const agents = {
-                'chrome': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-                'firefox': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0',
-                'safari': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.1 Safari/605.1.15',
-                'edge': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 Edg/91.0.864.59',
-                'mobile': 'Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36',
-                'random': getRandomUserAgent()
-            };
-            
-            return agents[config.userAgent] || agents['random'];
-        }
-
-        // User-Agent aleatorio
-        function getRandomUserAgent() {
-            const agents = [
-                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-                'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0',
-                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.1 Safari/605.1.15',
-                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 Edg/91.0.864.59',
-                'Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36'
-            ];
-            return agents[Math.floor(Math.random() * agents.length)];
-        }
-
-        // Inyectar protección de privacidad en el iframe
+        // Inyectar protección de privacidad
         function injectPrivacyProtection(iframe) {
             try {
                 const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
                 
                 // Bloquear scripts de rastreo
-                if (config.blockTracking) {
-                    const scripts = iframeDoc.querySelectorAll('script');
-                    scripts.forEach(script => {
-                        const src = script.src.toLowerCase();
-                        if (src.includes('google-analytics') || 
-                            src.includes('facebook') || 
-                            src.includes('tracker') ||
-                            src.includes('ads') ||
-                            src.includes('doubleclick') ||
-                            src.includes('googlesyndication') ||
-                            src.includes('adserver')) {
-                            script.remove();
-                        }
-                    });
-                }
+                const scripts = iframeDoc.querySelectorAll('script');
+                scripts.forEach(script => {
+                    const src = script.src.toLowerCase();
+                    if (src.includes('google-analytics') || 
+                        src.includes('facebook') || 
+                        src.includes('tracker') ||
+                        src.includes('ads') ||
+                        src.includes('doubleclick')) {
+                        script.remove();
+                    }
+                });
                 
-                // Deshabilitar cookies
-                if (config.disableCookies) {
-                    iframeDoc.cookie = '';
-                }
-                
-                // Modificar estilos para mejor privacidad
+                // Añadir estilos de privacidad
                 const style = iframeDoc.createElement('style');
                 style.textContent = `
-                    * {
-                        user-select: text !important;
-                    }
-                    iframe, object, embed {
-                        display: none !important;
-                    }
-                    [data-ad], [data-ads], [data-ad-slot], [class*="ad"], [class*="Ad"] {
+                    [data-ad], [data-ads], [class*="ad"], [class*="Ad"] {
                         display: none !important;
                     }
                 `;
                 iframeDoc.head.appendChild(style);
                 
-                // Añadir meta tags de privacidad
-                const meta1 = iframeDoc.createElement('meta');
-                meta1.httpEquiv = 'Referrer-Policy';
-                meta1.content = 'no-referrer';
-                iframeDoc.head.appendChild(meta1);
-                
-                const meta2 = iframeDoc.createElement('meta');
-                meta2.httpEquiv = 'Permissions-Policy';
-                meta2.content = 'geolocation=(), microphone=(), camera=(), payment=()';
-                iframeDoc.head.appendChild(meta2);
-                
-                updateStatus('✓ Protección de privacidad aplicada');
-                
             } catch (e) {
-                console.log('No se puede acceder al iframe (mismo origen):', e.message);
+                console.log('No se puede acceder al iframe:', e.message);
             }
         }
 
@@ -1089,32 +875,26 @@
                         text-align: center;
                     ">
                         <div>
-                            <h2 style="color: #ff4444; margin-bottom: 10px;">❌ Error de Proxy</h2>
+                            <h2 style="color: #ff4444;">❌ Error de Proxy</h2>
                             <p>${message}</p>
-                            <p style="margin-top: 20px; color: #666;">
-                                Intenta con otro tipo de proxy en la configuración.
-                            </p>
                         </div>
                     </div>
                 `;
             } catch (e) {
-                console.error('No se puede mostrar error en el frame:', e);
+                console.error('Error al mostrar mensaje:', e);
             }
         }
 
         // Mostrar/ocultar loading
         function showLoading(show) {
             const overlay = document.getElementById('loadingOverlay');
-            appState.isLoading = show;
             overlay.classList.toggle('active', show);
         }
 
         // Añadir al historial
         function addToHistory(url) {
             // No guardar en modo privado
-            if (isPrivateMode()) {
-                return;
-            }
+            if (isPrivateMode()) return;
             
             config.history.unshift({
                 url: url,
@@ -1122,8 +902,7 @@
                 title: getTitleFromUrl(url)
             });
             
-            // Limitar a 100 entradas
-            if (config.history.length > 100) {
+            if (config.history.length > 50) {
                 config.history.pop();
             }
             
@@ -1131,7 +910,7 @@
             updateHistoryUI();
         }
 
-        // Verificar si estamos en modo privado
+        // Verificar modo privado
         function isPrivateMode() {
             return document.querySelector('.tab.active')?.textContent.includes('Privado') || false;
         }
@@ -1208,35 +987,26 @@
                 <span class="tab-close" onclick="closeTab('${tabId}')">×</span>
             `;
             
-            // Desactivar todas las pestañas
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            
             tabsContainer.appendChild(tab);
-            config.currentTabId = tabId;
             
-            // Crear nuevo iframe
             const frame = document.getElementById('proxyFrame');
             frame.src = 'about:blank';
             frame.style.display = 'none';
             
-            updateStatus('✓ Nueva pestaña creada');
+            updateStatus('✓ Nueva pestaña');
         }
 
         // Cerrar pestaña
         function closeTab(tabId) {
             const tab = document.querySelector(`.tab[data-tab-id="${tabId}"]`);
-            if (tab) {
-                tab.remove();
-            }
+            if (tab) tab.remove();
             
-            // Si no hay pestañas, crear una nueva
             if (document.querySelectorAll('.tab').length === 0) {
                 newTab();
             } else {
-                // Activar la última pestaña
                 const tabs = document.querySelectorAll('.tab');
                 tabs[tabs.length - 1].classList.add('active');
-                config.currentTabId = tabs[tabs.length - 1].dataset.tabId;
             }
             
             updateStatus('✓ Pestaña cerrada');
@@ -1269,18 +1039,14 @@
                 <span class="tab-close" onclick="closeTab('${tabId}')">×</span>
             `;
             
-            // Desactivar todas las pestañas
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            
             tabsContainer.appendChild(tab);
-            config.currentTabId = tabId;
             
-            // Crear nuevo iframe
             const frame = document.getElementById('proxyFrame');
             frame.src = 'about:blank';
             frame.style.display = 'none';
             
-            updateStatus('🔒 Modo privado activado - No se guarda historial');
+            updateStatus('🔒 Modo privado activado');
         }
 
         // Mostrar historial
@@ -1289,18 +1055,12 @@
             toggleSettings();
         }
 
-        // Mostrar favoritos
-        function showBookmarks() {
-            showTab('favoritos');
-            updateStatus('📚 Favoritos');
-        }
-
         // Actualizar título de la pestaña
         function updateTabTitle() {
             try {
                 const frame = document.getElementById('proxyFrame');
                 const frameDoc = frame.contentDocument || frame.contentWindow.document;
-                const title = frameDoc.title || getTitleFromUrl(config.currentUrl);
+                const title = frameDoc.title || getTitleFromUrl(document.getElementById('urlInput').value);
                 
                 const activeTab = document.querySelector('.tab.active');
                 if (activeTab) {
@@ -1309,9 +1069,7 @@
                         titleSpan.textContent = title.length > 20 ? title.substring(0, 20) + '...' : title;
                     }
                 }
-            } catch (e) {
-                // No se puede acceder al título
-            }
+            } catch (e) {}
         }
 
         // Actualizar tipo de proxy
@@ -1330,40 +1088,19 @@
         window.onload = function() {
             loadConfig();
             
-            // Event listeners
+            // Event listener para el input
             document.getElementById('urlInput').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
                     navigate();
                 }
             });
             
-            // Intentar cargar página inicial
+            // CARGAR DUCKDUCKGO AUTOMÁTICAMENTE
             setTimeout(() => {
                 document.getElementById('urlInput').value = 'https://duckduckgo.com';
-            }, 100);
-            
-            // Verificar conexión al servidor
-            checkServerConnection();
+                navigate();
+            }, 500);
         };
-
-        // Verificar conexión al servidor
-        function checkServerConnection() {
-            fetch('/api/config')
-                .then(response => response.json())
-                .then(data => {
-                    console.log('✓ Servidor proxy conectado');
-                    const proxyStatus = document.getElementById('proxyStatus');
-                    proxyStatus.innerHTML = '<span>✓</span><span>Proxy: Conectado</span>';
-                    proxyStatus.classList.remove('error');
-                })
-                .catch(error => {
-                    console.error('❌ Error al conectar con el servidor proxy:', error);
-                    const proxyStatus = document.getElementById('proxyStatus');
-                    proxyStatus.innerHTML = '<span>❌</span><span>Proxy: Desconectado</span>';
-                    proxyStatus.classList.add('error');
-                    updateStatus('⚠️ No se puede conectar al servidor proxy');
-                });
-        }
     </script>
 </body>
 </html>
