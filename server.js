@@ -4,214 +4,159 @@ const cors = require('cors');
 const helmet = require('helmet');
 const UserAgents = require('user-agents');
 const path = require('path');
+const axios = require('axios');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Configuración de seguridad
+// Middleware
 app.use(helmet());
 app.use(cors({
-  origin: '*', // Permite cualquier origen (para desarrollo)
+  origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'User-Agent', 'Accept', 'Referer']
 }));
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
 
-// Middleware para bloquear WebRTC, geolocalización, etc.
+// Encabezados de seguridad
 app.use((req, res, next) => {
-  // Establecer encabezados de privacidad
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Referrer-Policy', 'no-referrer');
   res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=(), payment=()');
-  
-  // Bloquear WebRTC
-  res.setHeader('Feature-Policy', 'geolocation \'none\', microphone \'none\', camera \'none\', payment \'none\', usb \'none\'');
-  
   next();
 });
 
-// Servir archivos estáticos (el frontend HTML)
-app.use(express.static(path.join(__dirname, 'public')));
+// Lista de proxies públicos que funcionan
+const WORKING_PROXIES = {
+  'hideme': 'https://hide.me/es/proxy/',
+  'croxy': 'https://www.croxyproxy.com/?url=',
+  'kproxy': 'https://www.kproxy.com/browse.php?u=',
+  'zend2': 'https://zend2.com/?q=',
+  'direct': null
+};
 
-// Endpoint para obtener User-Agent aleatorio
+// Proxy dinámico
+app.get('/proxy/*', async (req, res) => {
+  try {
+    const url = req.params[0]; // Captura todo después de /proxy/
+    const decodedUrl = decodeURIComponent(url);
+    
+    // Validar URL
+    let targetUrl = decodedUrl;
+    if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
+      targetUrl = 'https://' + targetUrl;
+    }
+    
+    // Usar proxy público
+    const proxyType = req.query.type || 'croxy';
+    const proxyUrl = WORKING_PROXIES[proxyType] || WORKING_PROXIES.croxy;
+    
+    if (proxyUrl) {
+      // Redirigir al proxy público
+      return res.redirect(302, proxyUrl + encodeURIComponent(targetUrl));
+    }
+    
+    // Si no hay proxy, intentar hacer proxy directo (puede fallar por CORS)
+    const userAgent = new UserAgents().toString();
+    
+    const response = await axios.get(targetUrl, {
+      headers: {
+        'User-Agent': userAgent,
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Referer': 'https://google.com/',
+        'DNT': '1'
+      },
+      timeout: 10000
+    });
+    
+    // Enviar el HTML directamente
+    res.set('Content-Type', 'text/html; charset=utf-8');
+    res.send(response.data);
+    
+  } catch (error) {
+    console.error('Proxy error:', error.message);
+    res.status(500).send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Error de Proxy</title>
+          <style>
+            body { font-family: Arial, sans-serif; background: #1a1a1a; color: #ff4444; padding: 40px; text-align: center; }
+            h1 { color: #ff4444; }
+            p { color: #ccc; }
+            a { color: #00ff88; text-decoration: none; }
+            a:hover { text-decoration: underline; }
+          </style>
+        </head>
+        <body>
+          <h1>❌ Error de Proxy</h1>
+          <p>No se pudo cargar la página. El servicio proxy puede estar caído.</p>
+          <p>
+            <strong>Soluciones:</strong><br>
+            1. <a href="javascript:history.back()">Volver atrás</a><br>
+            2. <a href="/">Ir al inicio</a><br>
+            3. Prueba con otro tipo de proxy en la configuración
+          </p>
+          <p style="font-size: 12px; margin-top: 20px;">
+            Error: ${error.message || 'Desconocido'}
+          </p>
+        </body>
+      </html>
+    `);
+  }
+});
+
+// Proxy TOR (alternativa)
+app.get('/tor/*', (req, res) => {
+  try {
+    const url = req.params[0];
+    const decodedUrl = decodeURIComponent(url);
+    let targetUrl = decodedUrl;
+    
+    if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
+      targetUrl = 'https://' + targetUrl;
+    }
+    
+    // Usar CroxyProxy como alternativa (TOR2Web ya no funciona)
+    const torProxyUrl = `https://www.croxyproxy.com/?url=${encodeURIComponent(targetUrl)}`;
+    res.redirect(302, torProxyUrl);
+    
+  } catch (error) {
+    res.status(500).send('<h1>Error en proxy TOR</h1><p>Prueba con otro tipo de proxy.</p>');
+  }
+});
+
+// API endpoints
+app.get('/api/config', (req, res) => {
+  res.json({
+    proxyTypes: ['croxy', 'hideme', 'kproxy', 'direct'],
+    defaultProxy: 'croxy',
+    userAgents: ['random', 'chrome', 'firefox', 'safari', 'edge', 'mobile']
+  });
+});
+
 app.get('/api/user-agent', (req, res) => {
   const userAgent = new UserAgents();
   res.json({
     userAgent: userAgent.toString(),
     browser: userAgent.browser,
-    os: userAgent.os,
-    platform: userAgent.platform
+    os: userAgent.os
   });
 });
 
-// Endpoint para obtener configuración de privacidad
-app.get('/api/config', (req, res) => {
+app.get('/api/status', (req, res) => {
   res.json({
-    blockTracking: true,
-    disableCookies: true,
-    disableWebRTC: true,
-    disableGeolocation: true,
-    disableFingerprinting: true,
-    proxyType: 'tor'
+    status: 'running',
+    message: 'Servidor proxy funcionando',
+    proxies: Object.keys(WORKING_PROXIES)
   });
 });
 
-// Proxy middleware para redirigir solicitudes
-const proxyOptions = {
-  target: 'http://example.com', // Target por defecto
-  changeOrigin: true,
-  secure: false,
-  xfwd: true,
-  onProxyReq: (proxyReq, req, res) => {
-    // Modificar User-Agent
-    const userAgent = new UserAgents();
-    proxyReq.setHeader('User-Agent', userAgent.toString());
-    
-    // Bloquear cookies
-    proxyReq.removeHeader('Cookie');
-    proxyReq.removeHeader('Set-Cookie');
-    
-    // Bloquear Referer
-    proxyReq.removeHeader('Referer');
-    
-    // Bloquear encabezados de rastreo
-    proxyReq.removeHeader('DNT');
-    proxyReq.removeHeader('X-Forwarded-For');
-    
-    console.log(`[PROXY] Redirigiendo a: ${proxyReq.path}`);
-  },
-  onProxyRes: (proxyRes, req, res) => {
-    // Eliminar cookies de la respuesta
-    if (proxyRes.headers['set-cookie']) {
-      delete proxyRes.headers['set-cookie'];
-    }
-    
-    // Añadir encabezados de seguridad
-    proxyRes.headers['X-Content-Type-Options'] = 'nosniff';
-    proxyRes.headers['X-Frame-Options'] = 'SAMEORIGIN';
-    proxyRes.headers['X-XSS-Protection'] = '1; mode=block';
-    proxyRes.headers['Referrer-Policy'] = 'no-referrer';
-  },
-  filter: (req) => {
-    // Solo proxy para rutas que empiecen con /proxy/
-    return req.path.startsWith('/proxy/');
-  }
-};
-
-// Configurar proxy dinámico
-function createDynamicProxy(targetUrl) {
-  return createProxyMiddleware({
-    target: targetUrl,
-    changeOrigin: true,
-    secure: false,
-    xfwd: true,
-    onProxyReq: (proxyReq, req, res) => {
-      const userAgent = new UserAgents();
-      proxyReq.setHeader('User-Agent', userAgent.toString());
-      proxyReq.removeHeader('Cookie');
-      proxyReq.removeHeader('Set-Cookie');
-      proxyReq.removeHeader('Referer');
-      proxyReq.removeHeader('DNT');
-      proxyReq.removeHeader('X-Forwarded-For');
-      
-      // Bloquear encabezados adicionales
-      proxyReq.removeHeader('Accept-Language');
-      proxyReq.removeHeader('Accept-Encoding');
-      
-      console.log(`[PROXY] Conectando a: ${targetUrl}${proxyReq.path}`);
-    },
-    onProxyRes: (proxyRes, req, res) => {
-      delete proxyRes.headers['set-cookie'];
-      proxyRes.headers['X-Content-Type-Options'] = 'nosniff';
-      proxyRes.headers['X-Frame-Options'] = 'SAMEORIGIN';
-      proxyRes.headers['X-XSS-Protection'] = '1; mode=block';
-      proxyRes.headers['Referrer-Policy'] = 'no-referrer';
-    }
-  });
-}
-
-// Ruta para proxy dinámico
-app.use('/proxy/:url(*)', (req, res, next) => {
-  try {
-    let targetUrl = req.params.url;
-    
-    // Decodificar URL
-    targetUrl = decodeURIComponent(targetUrl);
-    
-    // Validar URL
-    if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
-      targetUrl = 'https://' + targetUrl;
-    }
-    
-    // Crear proxy dinámico para esta URL
-    const proxy = createDynamicProxy(targetUrl);
-    
-    // Ejecutar proxy
-    proxy(req, res, next);
-  } catch (error) {
-    console.error('[PROXY ERROR]:', error);
-    res.status(500).json({ error: 'Error al procesar la solicitud proxy' });
-  }
-});
-
-// Proxy para TOR (simulado - en producción usar un nodo TOR real)
-app.use('/tor/:url(*)', (req, res, next) => {
-  try {
-    let targetUrl = req.params.url;
-    targetUrl = decodeURIComponent(targetUrl);
-    
-    if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
-      targetUrl = 'https://' + targetUrl;
-    }
-    
-    // Simular TOR: usar servicios TOR2WEB
-    const torProxyUrl = `https://www.tor2web.org/webtunnel/?q=${encodeURIComponent(targetUrl)}`;
-    
-    const proxy = createProxyMiddleware({
-      target: torProxyUrl,
-      changeOrigin: true,
-      secure: false,
-      xfwd: true,
-      onProxyReq: (proxyReq, req, res) => {
-        const userAgent = new UserAgents();
-        proxyReq.setHeader('User-Agent', userAgent.toString());
-        proxyReq.removeHeader('Cookie');
-        proxyReq.removeHeader('Set-Cookie');
-        proxyReq.removeHeader('Referer');
-      }
-    });
-    
-    proxy(req, res, next);
-  } catch (error) {
-    console.error('[TOR PROXY ERROR]:', error);
-    res.status(500).json({ error: 'Error al procesar la solicitud TOR' });
-  }
-});
-
-// Ruta para limpiar cookies (simulada)
-app.post('/api/clear-cookies', (req, res) => {
-  res.json({ success: true, message: 'Cookies limpiadas' });
-});
-
-// Ruta para limpiar caché (simulada)
-app.post('/api/clear-cache', (req, res) => {
-  res.json({ success: true, message: 'Caché limpiada' });
-});
-
-// Ruta para obtener historial (simulada)
-app.get('/api/history', (req, res) => {
-  res.json({ history: [] });
-});
-
-// Ruta para guardar configuración
-app.post('/api/save-config', express.json(), (req, res) => {
-  const config = req.body;
-  console.log('[CONFIG] Configuración guardada:', config);
-  res.json({ success: true, config });
-});
-
-// Ruta principal - servir el frontend
+// Servir frontend
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -219,37 +164,33 @@ app.get('/', (req, res) => {
 // Iniciar servidor
 app.listen(PORT, () => {
   console.log(`
-╔════════════════════════════════════════════════════════════╗
-║                                                           ║
-║   🌐 NAV - Navegador Proxy Privado                        ║
-║   ═════════════════════════════════                    ║
-║                                                           ║
-║   ✅ Servidor proxy funcionando en:                       ║
-║      http://localhost:${PORT}                              ║
-║                                                           ║
-║   🔒 Características:                                     ║
-║      • Proxy HTTP/HTTPS                                   ║
-║      • Soporta TOR (vía tor2web)                          ║
-║      • User-Agent aleatorio                               ║
-║      • Bloqueo de cookies y trackers                      ║
-║      • Protección WebRTC y geolocalización                ║
-║      • Anti-fingerprinting                               ║
-║                                                           ║
-║   📝 Para usar:                                           ║
-║      1. Abre http://localhost:${PORT} en tu navegador     ║
-║      2. Ingresa una URL y navega con privacidad           ║
-║                                                           ║
-╚════════════════════════════════════════════════════════════╝
+╔══════════════════════════════════════════════════════════════╗
+║                                                               ║
+║   🌐 NAV - Navegador Proxy Privado                          ║
+║                                                               ║
+║   ✅ Servidor funcionando en: http://localhost:${PORT}        ║
+║                                                               ║
+║   📌 Para usar:                                               ║
+║      1. Abre http://localhost:${PORT} en tu navegador         ║
+║      2. Ingresa una URL y haz clic en "IR"                    ║
+║      3. DuckDuckGo se cargará automáticamente                ║
+║                                                               ║
+║   🔧 Proxies disponibles:                                     ║
+║      • CroxyProxy (recomendado)                              ║
+║      • Hide.me                                               ║
+║      • KProxy                                                ║
+║      • Directo (sin proxy)                                   ║
+║                                                               ║
+╚══════════════════════════════════════════════════════════════╝
   `);
 });
 
-// Manejar errores 404
+// Manejar errores
 app.use((req, res) => {
-  res.status(404).json({ error: 'Ruta no encontrada' });
+  res.status(404).send('<h1>404 - Página no encontrada</h1>');
 });
 
-// Manejar errores globales
 app.use((err, req, res, next) => {
-  console.error('[ERROR]:', err);
-  res.status(500).json({ error: 'Error interno del servidor' });
+  console.error(err);
+  res.status(500).send('<h1>500 - Error interno del servidor</h1>');
 });

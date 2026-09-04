@@ -374,34 +374,6 @@
             gap: 8px;
         }
 
-        .checkbox-group {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .checkbox-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-size: 13px;
-            padding: 8px;
-            border-radius: 5px;
-            transition: background 0.2s;
-            cursor: pointer;
-        }
-
-        .checkbox-item:hover {
-            background: #2a2a2a;
-        }
-
-        .checkbox-item input[type="checkbox"] {
-            width: 18px;
-            height: 18px;
-            accent-color: #00ff88;
-            cursor: pointer;
-        }
-
         .proxy-selector {
             margin-bottom: 15px;
         }
@@ -466,16 +438,6 @@
             background: rgba(0, 255, 136, 0.1);
         }
 
-        .error-message {
-            color: #ff4444;
-            padding: 20px;
-            text-align: center;
-            font-size: 14px;
-            background: rgba(255, 68, 68, 0.1);
-            border-radius: 8px;
-            margin: 10px;
-        }
-
         .toggle-sidebar {
             background: #333;
             color: #fff;
@@ -505,6 +467,16 @@
         .proxy-status.error {
             background: rgba(255, 68, 68, 0.1);
             color: #ff4444;
+        }
+
+        .error-message {
+            color: #ff4444;
+            padding: 20px;
+            text-align: center;
+            font-size: 14px;
+            background: rgba(255, 68, 68, 0.1);
+            border-radius: 8px;
+            margin: 10px;
         }
 
         @media (max-width: 768px) {
@@ -626,15 +598,15 @@
             <h3>🔧 Configuración del Proxy</h3>
             <div class="proxy-selector">
                 <select id="proxyType" onchange="updateProxyType()">
+                    <option value="croxy" selected>CroxyProxy (Recomendado)</option>
                     <option value="hideme">Hide.me (HTTPS)</option>
-                    <option value="croxy">CroxyProxy (HTTPS)</option>
-                    <option value="tor2web" selected>TOR2Web (Anónimo)</option>
+                    <option value="kproxy">KProxy (HTTPS)</option>
                     <option value="direct">Directo (sin proxy)</option>
                 </select>
             </div>
             <div class="proxy-status" id="proxyStatusDisplay">
                 <span>✓</span>
-                <span>Proxy TOR2Web seleccionado</span>
+                <span>Proxy CroxyProxy seleccionado</span>
             </div>
         </div>
 
@@ -664,7 +636,7 @@
     <script>
         // Configuración global
         let config = {
-            proxyType: 'tor2web',
+            proxyType: 'croxy',
             userAgent: 'random',
             history: [],
             currentTabId: 'tab-1'
@@ -697,9 +669,9 @@
             const statusDisplay = document.getElementById('proxyStatusDisplay');
             const proxyType = config.proxyType;
             const messages = {
+                'croxy': 'Proxy: CroxyProxy (Recomendado)',
                 'hideme': 'Proxy: Hide.me (HTTPS)',
-                'croxy': 'Proxy: CroxyProxy (HTTPS)',
-                'tor2web': 'Proxy: TOR2Web (Anónimo)',
+                'kproxy': 'Proxy: KProxy (HTTPS)',
                 'direct': 'Proxy: Desactivado'
             };
             statusDisplay.innerHTML = `<span>✓</span><span>${messages[proxyType] || 'Proxy: Desconocido'}</span>`;
@@ -801,7 +773,7 @@
                 proxyFrame.onerror = function() {
                     showLoading(false);
                     updateStatus('❌ Error al cargar');
-                    showErrorInFrame('No se pudo cargar. Prueba otro proxy.');
+                    showErrorInFrame('No se pudo cargar. Prueba con CroxyProxy o Hide.me en la configuración.');
                 };
                 
             } catch (e) {
@@ -811,18 +783,18 @@
             }
         }
 
-        // Obtener URL del proxy (servicios públicos)
+        // Obtener URL del proxy (servicios públicos que SÍ funcionan)
         function getProxyUrl(url) {
             const encodedUrl = encodeURIComponent(url);
             
             const proxyServices = {
-                'hideme': `https://hide.me/es/proxy/${encodedUrl}`,
                 'croxy': `https://www.croxyproxy.com/?url=${encodedUrl}`,
-                'tor2web': `https://www.tor2web.org/webtunnel/?q=${encodedUrl}`,
+                'hideme': `https://hide.me/es/proxy/${encodedUrl}`,
+                'kproxy': `https://www.kproxy.com/browse.php?u=${encodedUrl}`,
                 'direct': url
             };
             
-            return proxyServices[config.proxyType] || url;
+            return proxyServices[config.proxyType] || proxyServices.croxy;
         }
 
         // Inyectar protección de privacidad
@@ -877,6 +849,12 @@
                         <div>
                             <h2 style="color: #ff4444;">❌ Error de Proxy</h2>
                             <p>${message}</p>
+                            <p style="margin-top: 20px; color: #666;">
+                                <strong>Prueba con:</strong><br>
+                                1. CroxyProxy (recomendado)<br>
+                                2. Hide.me<br>
+                                3. KProxy
+                            </p>
                         </div>
                     </div>
                 `;
@@ -893,7 +871,6 @@
 
         // Añadir al historial
         function addToHistory(url) {
-            // No guardar en modo privado
             if (isPrivateMode()) return;
             
             config.history.unshift({

@@ -1,7 +1,7 @@
 {
   "name": "nav-proxy-browser",
-  "version": "1.0.0",
-  "description": "Navegador Proxy 100% funcional con enfoque en privacidad",
+  "version": "2.0.0",
+  "description": "Navegador Proxy 100% funcional con Node.js - Versión mejorada",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -12,7 +12,8 @@
     "http-proxy-middleware": "^2.0.6",
     "cors": "^2.8.5",
     "user-agents": "^1.0.1494",
-    "helmet": "^7.1.0"
+    "helmet": "^7.1.0",
+    "axios": "^1.6.2"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
